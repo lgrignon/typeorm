@@ -7,6 +7,7 @@ import {IndexMetadata} from "../metadata/IndexMetadata";
 import {JoinTableMetadataArgs} from "../metadata-args/JoinTableMetadataArgs";
 import {RelationMetadata} from "../metadata/RelationMetadata";
 import {AuroraDataApiDriver} from "../driver/aurora-data-api/AuroraDataApiDriver";
+import {ManyToManySubjectBuilder} from "../persistence/subject-builder/ManyToManySubjectBuilder";
 
 /**
  * Creates EntityMetadata for junction tables.
@@ -130,10 +131,25 @@ export class JunctionEntityMetadataBuilder {
 
         this.changeDuplicatedColumnNames(junctionColumns, inverseJunctionColumns);
 
+        const orderIndexColumn = new ColumnMetadata({
+            connection: this.connection,
+            entityMetadata: entityMetadata,
+            args: {
+                propertyName: ManyToManySubjectBuilder.ORDER_INDEX_COLUMN_NAME,
+                target: "",
+                mode: "virtual",
+                options: {
+                    name: ManyToManySubjectBuilder.ORDER_INDEX_COLUMN_NAME,
+                    type: Number,
+                    primary: true,
+                }
+            }
+        });
+
         // set junction table columns
         entityMetadata.ownerColumns = junctionColumns;
         entityMetadata.inverseColumns = inverseJunctionColumns;
-        entityMetadata.ownColumns = [...junctionColumns, ...inverseJunctionColumns];
+        entityMetadata.ownColumns = [...junctionColumns, ...inverseJunctionColumns, orderIndexColumn];
         entityMetadata.ownColumns.forEach(column => column.relationMetadata = relation);
 
         // create junction table foreign keys

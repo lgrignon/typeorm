@@ -3,6 +3,7 @@ import {OrmUtils} from "../../util/OrmUtils";
 import {ObjectLiteral} from "../../common/ObjectLiteral";
 import {RelationMetadata} from "../../metadata/RelationMetadata";
 import {EntityMetadata} from "../../metadata/EntityMetadata";
+import { ColumnMetadata } from '../../metadata/ColumnMetadata';
 
 /**
  * Builds operations needs to be executed for many-to-many relations of the given subjects.
@@ -13,6 +14,8 @@ import {EntityMetadata} from "../../metadata/EntityMetadata";
  *             This operation requires updation of junction table.
  */
 export class ManyToManySubjectBuilder {
+
+    static readonly ORDER_INDEX_COLUMN_NAME: string = 'orderIndex';
 
     // ---------------------------------------------------------------------
     // Constructor
@@ -114,7 +117,7 @@ export class ManyToManySubjectBuilder {
             return;
 
         // from all related entities find only those which aren't found in the db - for them we will create operation subjects
-        relatedEntities.forEach(relatedEntity => { // by example: relatedEntity is category from categories saved with post
+        relatedEntities.forEach((relatedEntity, indexInArray: number) => { // by example: relatedEntity is category from categories saved with post
 
             // todo: check how it will work for entities which are saved by cascades, but aren't saved in the database yet
 
@@ -153,18 +156,39 @@ export class ManyToManySubjectBuilder {
                 return EntityMetadata.compareIds(databaseRelatedEntityRelationId, relatedEntityRelationIdMap);
             });
 
-            // if entity is found then don't do anything - it means binding in junction table already exist, we don't need to add anything
-            if (relatedEntityExistInDatabase)
-                return;
-
             const ownerValue = relation.isOwning ? subject : (relatedEntitySubject || relatedEntity); // by example: ownerEntityMap is post from subject here
             const inverseValue = relation.isOwning ? (relatedEntitySubject || relatedEntity) : subject; // by example: inverseEntityMap is category from categories array here
+
+            const orderIndexColumn: ColumnMetadata = relation.junctionEntityMetadata!.findColumnWithPropertyName(ORDER_INDEX_COLUMN_NAME)!;
+            
+            // we update orderIndex of every modified or new related entry
+            const initialChangeMaps = [{
+                column: orderIndexColumn,
+                value: indexInArray,
+            }];
+            
+            // if entity is found then don't do anything - it means binding in junction table already exist, we don't need to add anything
+            if (relatedEntityExistInDatabase) {
+
+                // update order index of this relation row
+                const updateJunctionOrderIndexSubject = new Subject({
+                    metadata: relation.junctionEntityMetadata!,
+                    parentSubject: subject,
+                    canBeUpdated: true,
+                    identifier: this.buildJunctionIdentifier(subject, relation, relatedEntity),
+                    changeMaps: initialChangeMaps
+                });
+                this.subjects.push(updateJunctionOrderIndexSubject);
+
+                return;
+            }
 
             // create a new subject for insert operation of junction rows
             const junctionSubject = new Subject({
                 metadata: relation.junctionEntityMetadata!,
                 parentSubject: subject,
                 canBeInserted: true,
+                changeMaps: initialChangeMaps
             });
             this.subjects.push(junctionSubject);
 

@@ -1,5 +1,6 @@
 import {Connection, ObjectLiteral, QueryRunner} from "../";
 import {RelationMetadata} from "../metadata/RelationMetadata";
+import {ManyToManySubjectBuilder} from "../persistence/subject-builder/ManyToManySubjectBuilder";
 
 /**
  * Wraps entities and creates getters/setters for their relations
@@ -143,6 +144,7 @@ export class RelationLoader {
             .from(relation.type, mainAlias)
             .innerJoin(joinAlias, joinAlias, [...joinColumnConditions, ...inverseJoinColumnConditions].join(" AND "))
             .setParameters(parameters)
+            .orderBy(joinAlias + '.' + ManyToManySubjectBuilder.ORDER_INDEX_COLUMN_NAME)
             .getMany();
     }
 

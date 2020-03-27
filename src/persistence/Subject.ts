@@ -236,7 +236,7 @@ export class Subject {
             // value = changeMap.valueFactory ? changeMap.valueFactory(value) : changeMap.column.createValueMap(value);
 
             let valueMap: ObjectLiteral|undefined;
-            if (this.metadata.isJunction && changeMap.column) {
+            if (this.metadata.isJunction && changeMap.column && changeMap.column.referencedColumn) {
                 valueMap = changeMap.column.createValueMap(changeMap.column.referencedColumn!.getEntityValue(value));
 
             } else if (changeMap.column) {
